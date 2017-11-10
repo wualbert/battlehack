@@ -39,6 +39,7 @@ def getEntityMap(state):
                 ownCount+=1
             else:
                 enemyCount+=1
+    print("ownteam", ownCount,"enemy", enemyCount)
     return entityMap, ownCount, enemyCount
 
 def enemyPickup(selfRobot,near_entities):
@@ -51,7 +52,7 @@ def enemyPickup(selfRobot,near_entities):
     nearEnemies = []
     for nearEntity in near_entities:
         if selfRobot.can_pickup(nearEntity):
-            if  nearEntity.team == state.my_team_id:
+            if  nearEntity.team.id != state.my_team.id:
                 nearEnemies.append(nearEntity)
     #sort enemies by HP
     nearEnemies.sort(key = lambda x: x.hp)
@@ -98,7 +99,7 @@ def find_closest_goals(state,robot, all_sectors):
 
 
 
-def enemies_within_hitting_range(S):
+def enemies_within_hitting_range(S,state):
     '''
     For a Stack that can throw, checks if there is an enemy R or T that can be hit from the current position
     returns a list of lists of [entity that can be hit, direction] or None
@@ -106,45 +107,49 @@ def enemies_within_hitting_range(S):
     res = []
     for other_entity in S.entities_within_euclidean_distance(7):
         if other_entity.team.id != state.my_team.id and other_entity.team.id != 0:
-            otherX = other_entity.location()[0]
-            otherY = other_entity.location()[1]
-            throwerX = S.location()[0]
-            throwerY = S.location()[1]
+            otherX = other_entity.location.x
+            otherY = other_entity.location.y
+            throwerX = S.location.x
+            throwerY = S.location.y
             deltaX = otherX - throwerX
             deltaY = otherY - throwerY
             if abs(otherX) == abs(otherY):
                 ent_list = []
                 ent_list.append(other_entity)
-                if deltaX > 0 and deltaY == 0:
-                    ent_list.append(battlecode.Direction.EAST)
-                if deltaX > 0 and deltaY > 0:
-                    ent_list.append(battlecode.Direction.NORTH_EAST)
-                if deltaX == 0 and deltaY > 0:
-                    ent_list.append(battlecode.Direction.NORTH)
-                if deltaX < 0 and deltaY > 0:
-                    ent_list.append(battlecode.Direction.NORTH_WEST)
-                if deltaX < 0 and deltaY == 0:
-                    ent_list.append(battlecode.Direction.WEST)
-                if deltaX < 0 and deltaY < 0:
-                    ent_list.append(battlecode.Direction.SOUTH_WEST)
-                if deltaX == 0 and deltaY < 0:
-                    ent_list.append(battlecode.Direction.SOUTH)
-                if deltaX > 0 and deltaY < 0:
-                    ent_list.append(battlecode.Direction.SOUTH_EAST)
+                ent_list.append(battlecode.Direction.from_delta(deltaX, deltaY))
+                #
+                # if deltaX > 0 and deltaY == 0:
+                #     ent_list.append(battlecode.EAST)
+                # if deltaX > 0 and deltaY > 0:
+                #     ent_list.append(battlecode.NORTH_EAST)
+                # if deltaX == 0 and deltaY > 0:
+                #     ent_list.append(battlecode.NORTH)
+                # if deltaX < 0 and deltaY > 0:
+                #     ent_list.append(battlecode.NORTH_WEST)
+                # if deltaX < 0 and deltaY == 0:
+                #     ent_list.append(battlecode.WEST)
+                # if deltaX < 0 and deltaY < 0:
+                #     ent_list.append(battlecode.SOUTH_WEST)
+                # if deltaX == 0 and deltaY < 0:
+                #     ent_list.append(battlecode.SOUTH)
+                # if deltaX > 0 and deltaY < 0:
+                #     ent_list.append(battlecode.SOUTH_EAST)
                 res.append(ent_list)
     if res:
         return res
     return None
 
 
-def hit_an_enemy(S):
+def hit_an_enemy(S, state):
     '''
     Stack throws a robot into an enemy (the first in the list for now)
     '''
-    available_enemies = enemies_within_hitting_range(S)
-    if available_enemies != None and S.can_act():
+    available_enemies = enemies_within_hitting_range(S,state)
+    if available_enemies != None and S.can_act:
         S.queue_throw(available_enemies[0][1])
 
+def aggresiveKill(state):
+    pass
 
 for state in game.turns():
     # Your Code will run within this loop
@@ -155,12 +160,16 @@ for state in game.turns():
 
     all_goal_sectors = get_goal_sectors(state)
 
-
+    aggresiveKillMode = False
     for entity in state.get_entities(team=state.my_team): 
         # This line gets all the bots on your team
         subtime = time.time()
         if subtime - starttime > 0.90:
             break
+
+        if aggresiveKillMode:
+            aggresiveKill(state)
+
 
         ###Modifications###
         #get adjacent entities
@@ -172,7 +181,7 @@ for state in game.turns():
         if enemiesInRange:
             print('picking up')
             entity.queue_pickup(enemiesInRange[0])
-            entity.hit_an_enemy()
+            hit_an_enemy(entity, state)
 
         #check for building statues
         buildDirections = buildStatue(entity,state)
