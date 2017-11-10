@@ -76,14 +76,21 @@ def get_goal_sectors(state):
 
 
 def find_closest_goals(state,robot, all_sectors):
+    """
 
+    :param state:
+    :param robot:
+    :param all_sectors:
+    :return: Location object
+    """
     min_loc = (0,0)
     min_dist = 500000
     for s in all_sectors:
         if(robot.location.distance_to(battlecode.Location(s.top_left[0]+2, s.top_left[1]-2)) < min_dist):
             min_loc = (s.top_left[0]+2,s.top_left[1]-2)
             min_dist = robot.location.distance_to(battlecode.Location(s.top_left[0]+2, s.top_left[1]-2))
-    return min_loc
+    return battlecode.Location(min_loc)
+
 
 
 def enemies_within_hitting_range(S):
@@ -152,9 +159,6 @@ for state in game.turns():
         print(subtime-starttime)
         if subtime - starttime > 0.055:
             break
-        
-        #call if need to move
-        #closestGoal = find_closest_goals(state, entity, all_goal_sectors)
 
         ###Modifications###
         #get adjacent entities
@@ -172,6 +176,15 @@ for state in game.turns():
         if buildDirections:
             entity.queue_build(buildDirections[0])
 
+        # call if need to move
+        closestGoal = find_closest_goals(state, entity, all_goal_sectors)
+
+        #check if already at goal
+        if entity.location != closestGoal:
+            movementDirection = entity.location.direction_to(closestGoal)
+            #check if the direction is movable
+            if entity.can_move(movementDirection):
+                entity.queue_move(movementDirection)
         ###End###
         #
         # for pickup_entity in near_entities:

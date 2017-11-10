@@ -24,8 +24,8 @@
       <file leaf-file-name="player.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/player.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="285">
-              <caret line="175" column="3" lean-forward="false" selection-start-line="175" selection-start-column="3" selection-end-line="175" selection-end-column="3" />
+            <state relative-caret-position="378">
+              <caret line="184" column="46" lean-forward="false" selection-start-line="184" selection-start-column="46" selection-end-line="184" selection-end-column="46" />
               <folding>
                 <element signature="e#0#17#0" expanded="true" />
               </folding>
@@ -260,8 +260,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/player.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="285">
-          <caret line="175" column="3" lean-forward="false" selection-start-line="175" selection-start-column="3" selection-end-line="175" selection-end-column="3" />
+        <state relative-caret-position="378">
+          <caret line="184" column="46" lean-forward="false" selection-start-line="184" selection-start-column="46" selection-end-line="184" selection-end-column="46" />
           <folding>
             <element signature="e#0#17#0" expanded="true" />
           </folding>
