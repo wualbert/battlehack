@@ -27,12 +27,20 @@ def getEntityMap(state):
     """
 
     :param state: a game state
-    :return: 2d array of [map.width][map.height] that stores entity objects
+    :return: 2d array of [map.width][map.height] that stores entity objects, ownCount, enemyCount
     """
+    enemyCount = 0
+    ownCount = 0
     entityMap = [[None]*state.map.height]*state.map.width
-    for entity in state.get_entities(team=state.my_team):
+    for entity in state.get_entities():
         entityMap[entity.location.x][entity.location.y] = entity
-    return entityMap
+        if entity.is_thrower:
+            if entity.team == state.my_team:
+                ownCount+=1
+            else:
+                enemyCount+=1
+    print("ownteam", ownCount,"enemy", enemyCount)
+    return entityMap, ownCount, enemyCount
 
 def enemyPickup(selfRobot,near_entities):
     """
@@ -50,9 +58,7 @@ def enemyPickup(selfRobot,near_entities):
     nearEnemies.sort(key = lambda x: x.hp)
     return nearEnemies
 
-
 def buildStatue(selfRobot, state):
-
     #check if there are statues in the sector
     selfSector = state.map.sector_at(selfRobot.location)
     if selfSector.team != state.my_team:
@@ -94,6 +100,7 @@ def find_closest_goals(state,robot, all_sectors):
 
 
 def enemies_within_hitting_range(S, state):
+
     '''
     For a Stack that can throw, checks if there is an enemy R or T that can be hit from the current position
     returns a list of lists of [entity that can be hit, direction] or None
@@ -101,31 +108,33 @@ def enemies_within_hitting_range(S, state):
     res = []
     for other_entity in S.entities_within_euclidean_distance(7):
         if other_entity.team.id != state.my_team.id and other_entity.team.id != 0:
-            otherX = other_entity.location[0]
-            otherY = other_entity.location[1]
-            throwerX = S.location[0]
-            throwerY = S.location[1]
+            otherX = other_entity.location.x
+            otherY = other_entity.location.y
+            throwerX = S.location.x
+            throwerY = S.location.y
             deltaX = otherX - throwerX
             deltaY = otherY - throwerY
             if abs(otherX) == abs(otherY):
                 ent_list = []
                 ent_list.append(other_entity)
-                if deltaX > 0 and deltaY == 0:
-                    ent_list.append(battlecode.Direction.EAST)
-                if deltaX > 0 and deltaY > 0:
-                    ent_list.append(battlecode.Direction.NORTH_EAST)
-                if deltaX == 0 and deltaY > 0:
-                    ent_list.append(battlecode.Direction.NORTH)
-                if deltaX < 0 and deltaY > 0:
-                    ent_list.append(battlecode.Direction.NORTH_WEST)
-                if deltaX < 0 and deltaY == 0:
-                    ent_list.append(battlecode.Direction.WEST)
-                if deltaX < 0 and deltaY < 0:
-                    ent_list.append(battlecode.Direction.SOUTH_WEST)
-                if deltaX == 0 and deltaY < 0:
-                    ent_list.append(battlecode.Direction.SOUTH)
-                if deltaX > 0 and deltaY < 0:
-                    ent_list.append(battlecode.Direction.SOUTH_EAST)
+                ent_list.append(battlecode.Direction.from_delta(deltaX, deltaY))
+                #
+                # if deltaX > 0 and deltaY == 0:
+                #     ent_list.append(battlecode.EAST)
+                # if deltaX > 0 and deltaY > 0:
+                #     ent_list.append(battlecode.NORTH_EAST)
+                # if deltaX == 0 and deltaY > 0:
+                #     ent_list.append(battlecode.NORTH)
+                # if deltaX < 0 and deltaY > 0:
+                #     ent_list.append(battlecode.NORTH_WEST)
+                # if deltaX < 0 and deltaY == 0:
+                #     ent_list.append(battlecode.WEST)
+                # if deltaX < 0 and deltaY < 0:
+                #     ent_list.append(battlecode.SOUTH_WEST)
+                # if deltaX == 0 and deltaY < 0:
+                #     ent_list.append(battlecode.SOUTH)
+                # if deltaX > 0 and deltaY < 0:
+                #     ent_list.append(battlecode.SOUTH_EAST)
                 res.append(ent_list)
     if res:
         return res
@@ -136,8 +145,8 @@ def hit_an_enemy(S, state):
     '''
     Stack throws a robot into an enemy (the first in the list for now)
     '''
-    available_enemies = enemies_within_hitting_range(S, state)
-    if available_enemies != None and S.can_act():
+    available_enemies = enemies_within_hitting_range(S,state)
+    if available_enemies != None and S.can_act:
         S.queue_throw(available_enemies[0][1])
         print('nanafig')
 
@@ -180,22 +189,30 @@ def build_a_tower(thrower, state):
         
     
     
+def aggresiveKill(state):
+    pass
 
 for state in game.turns():
     # Your Code will run within this loop
     starttime = time.time()
-    
-    ###Modifications###
 
     #get entity map
-    entityMap = getEntityMap(state)
+    entityMap, ownCount, enemyCount = getEntityMap(state)
 
     all_goal_sectors = get_goal_sectors(state)
-    ###End###
 
+    aggresiveKillMode = False
     for entity in state.get_entities(team=state.my_team): 
         # This line gets all the bots on your team
         subtime = time.time()
+
+        if subtime - starttime > 0.90:
+            break
+
+        if aggresiveKillMode:
+            aggresiveKill(state)
+
+
         ###Modifications###
         #get adjacent entities
         my_location = entity.location
@@ -204,6 +221,7 @@ for state in game.turns():
         enemiesInRange = enemyPickup(entity, near_entities)
         #pick up enemies
         if enemiesInRange:
+            print('picking up')
             entity.queue_pickup(enemiesInRange[0])
             hit_an_enemy(entity, state)
 
@@ -221,7 +239,15 @@ for state in game.turns():
             #check if the direction is movable
             if entity.can_move(movementDirection):
                 entity.queue_move(movementDirection)
-        
+            #turn if blocked
+            elif entity.can_move(movementDirection.rotate_counter_clockwise_degrees(90)):
+                entity.queue_move(movementDirection.rotate_counter_clockwise_degrees(90))
+            elif entity.can_move(movementDirection.rotate_counter_clockwise_degrees(270)):
+                entity.queue_move(movementDirection.rotate_counter_clockwise_degrees(270))
+
+
+
+
         ###End###
         #
         # for pickup_entity in near_entities:
