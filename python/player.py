@@ -173,23 +173,23 @@ for state in game.turns():
             entity.queue_build(buildDirections[0])
 
         ###End###
-
-        for pickup_entity in near_entities:
-            assert entity.location.is_adjacent(pickup_entity.location)
-            if entity.can_pickup(pickup_entity):
-                entity.queue_pickup(pickup_entity)
-
-        statue = nearest_glass_state(state, entity)
-        if(statue != None):
-            direction = entity.location.direction_to(statue.location)
-            if entity.can_throw(direction):
-                entity.queue_throw(direction)
-
-        for direction in battlecode.Direction.directions():
-            if entity.can_move(direction):
-                entity.queue_move(direction)
-        if subtime - starttime > 0.055:
-            break
+        #
+        # for pickup_entity in near_entities:
+        #     assert entity.location.is_adjacent(pickup_entity.location)
+        #     if entity.can_pickup(pickup_entity):
+        #         entity.queue_pickup(pickup_entity)
+        #
+        # statue = nearest_glass_state(state, entity)
+        # if(statue != None):
+        #     direction = entity.location.direction_to(statue.location)
+        #     if entity.can_throw(direction):
+        #         entity.queue_throw(direction)
+        #
+        # for direction in battlecode.Direction.directions():
+        #     if entity.can_move(direction):
+        #         entity.queue_move(direction)
+        # if subtime - starttime > 0.055:
+        #     break
 
 end = time.clock()
 print('clock time: '+str(end - start))
