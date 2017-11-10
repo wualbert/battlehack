@@ -27,12 +27,19 @@ def getEntityMap(state):
     """
 
     :param state: a game state
-    :return: 2d array of [map.width][map.height] that stores entity objects
+    :return: 2d array of [map.width][map.height] that stores entity objects, ownCount, enemyCount
     """
+    enemyCount = 0
+    ownCount = 0
     entityMap = [[None]*state.map.height]*state.map.width
-    for entity in state.get_entities(team=state.my_team):
+    for entity in state.get_entities():
         entityMap[entity.location.x][entity.location.y] = entity
-    return entityMap
+        if entity.is_thrower:
+            if entity.team == state.my_team:
+                ownCount+=1
+            else:
+                enemyCount+=1
+    return entityMap, ownCount, enemyCount
 
 def enemyPickup(selfRobot,near_entities):
     """
@@ -50,9 +57,7 @@ def enemyPickup(selfRobot,near_entities):
     nearEnemies.sort(key = lambda x: x.hp)
     return nearEnemies
 
-
 def buildStatue(selfRobot, state):
-
     #check if there are statues in the sector
     selfSector = state.map.sector_at(selfRobot.location)
     if selfSector.team != state.my_team:
@@ -144,20 +149,17 @@ def hit_an_enemy(S):
 for state in game.turns():
     # Your Code will run within this loop
     starttime = time.time()
-    
-    ###Modifications###
 
     #get entity map
-    entityMap = getEntityMap(state)
+    entityMap, ownCount, enemyCount = getEntityMap(state)
 
     all_goal_sectors = get_goal_sectors(state)
-    ###End###
+
 
     for entity in state.get_entities(team=state.my_team): 
         # This line gets all the bots on your team
         subtime = time.time()
-        print(subtime-starttime)
-        if subtime - starttime > 0.055:
+        if subtime - starttime > 0.90:
             break
 
         ###Modifications###
@@ -168,6 +170,7 @@ for state in game.turns():
         enemiesInRange = enemyPickup(entity, near_entities)
         #pick up enemies
         if enemiesInRange:
+            print('picking up')
             entity.queue_pickup(enemiesInRange[0])
             entity.hit_an_enemy()
 
@@ -185,6 +188,14 @@ for state in game.turns():
             #check if the direction is movable
             if entity.can_move(movementDirection):
                 entity.queue_move(movementDirection)
+            elif entity.can_move(movementDirection.rotate_counter_clockwise_degrees(90)):
+                entity.queue_move(movementDirection.rotate_counter_clockwise_degrees(90))
+            elif entity.can_move(movementDirection.rotate_counter_clockwise_degrees(270)):
+                entity.queue_move(movementDirection.rotate_counter_clockwise_degrees(270))
+
+
+
+
         ###End###
         #
         # for pickup_entity in near_entities:
