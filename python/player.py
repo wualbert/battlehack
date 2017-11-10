@@ -44,7 +44,7 @@ def enemyPickup(selfRobot,near_entities):
     nearEnemies = []
     for nearEntity in near_entities:
         if selfRobot.can_pickup(nearEntity):
-            if  nearEntity.team == state.my_team_id:
+            if  nearEntity.team.id != state.my_team.id:
                 nearEnemies.append(nearEntity)
     #sort enemies by HP
     nearEnemies.sort(key = lambda x: x.hp)
@@ -93,7 +93,7 @@ def find_closest_goals(state,robot, all_sectors):
 
 
 
-def enemies_within_hitting_range(S):
+def enemies_within_hitting_range(S, state):
     '''
     For a Stack that can throw, checks if there is an enemy R or T that can be hit from the current position
     returns a list of lists of [entity that can be hit, direction] or None
@@ -101,10 +101,10 @@ def enemies_within_hitting_range(S):
     res = []
     for other_entity in S.entities_within_euclidean_distance(7):
         if other_entity.team.id != state.my_team.id and other_entity.team.id != 0:
-            otherX = other_entity.location()[0]
-            otherY = other_entity.location()[1]
-            throwerX = S.location()[0]
-            throwerY = S.location()[1]
+            otherX = other_entity.location[0]
+            otherY = other_entity.location[1]
+            throwerX = S.location[0]
+            throwerY = S.location[1]
             deltaX = otherX - throwerX
             deltaY = otherY - throwerY
             if abs(otherX) == abs(otherY):
@@ -132,14 +132,54 @@ def enemies_within_hitting_range(S):
     return None
 
 
-def hit_an_enemy(S):
+def hit_an_enemy(S, state):
     '''
     Stack throws a robot into an enemy (the first in the list for now)
     '''
-    available_enemies = enemies_within_hitting_range(S)
+    available_enemies = enemies_within_hitting_range(S, state)
     if available_enemies != None and S.can_act():
         S.queue_throw(available_enemies[0][1])
+        print('nanafig')
 
+def building_spots(thrower, state):
+    '''
+    thrower: a robot
+    state: current state of the game
+    for a given thrower, analyzes a sector configuration and
+    builds a new statue if:
+    - A sector is neutral without enemy statue or is owned by enemy
+    - Can build on one of the adjacent tiles
+
+    returns: a list of possible building directions
+    '''
+    current_location = thrower.location
+    MiniMap = state.map
+    current_sector = MiniMap.sector_at(current_location)
+    sector_id = current_sector.team.id
+    condition = True
+    
+    for entity in current_sector.entities_in_sector():
+        if entity.type == 'STATUE':
+            condition = False
+            
+    neutral_without_statue = (sector_id ==0) and condition
+
+    building_spots = []
+            
+    if (sector_id != 0 and sector_id != state.my_team.id) or neutral_without_statue:
+        for possible_direction in battlecode.Direction.directions():
+            possible_building_spot = current_location.adjacent_location_in_direction(possible_direction)
+            if thrower.can_build(possible_direction) and state.map.sector_at(possible_building_spot) == current_sector:
+                building_spots.append(possible_direction)
+
+    return building_spots
+
+def build_a_tower(thrower, state):
+    if building_spots(thrower, state) != []:
+        thrower.queue_build(building_spots[0])
+        
+    
+    
 
 for state in game.turns():
     # Your Code will run within this loop
@@ -156,10 +196,6 @@ for state in game.turns():
     for entity in state.get_entities(team=state.my_team): 
         # This line gets all the bots on your team
         subtime = time.time()
-        print(subtime-starttime)
-        if subtime - starttime > 0.055:
-            break
-
         ###Modifications###
         #get adjacent entities
         my_location = entity.location
@@ -169,10 +205,10 @@ for state in game.turns():
         #pick up enemies
         if enemiesInRange:
             entity.queue_pickup(enemiesInRange[0])
-            entity.hit_an_enemy()
+            hit_an_enemy(entity, state)
 
         #check for building statues
-        buildDirections = buildStatue(entity,state)
+        buildDirections = building_spots(entity, state)
         if buildDirections:
             entity.queue_build(buildDirections[0])
 
@@ -185,6 +221,7 @@ for state in game.turns():
             #check if the direction is movable
             if entity.can_move(movementDirection):
                 entity.queue_move(movementDirection)
+        
         ###End###
         #
         # for pickup_entity in near_entities:
