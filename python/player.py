@@ -191,6 +191,17 @@ def building_spots(thrower, state):
 
     return building_spots
 
+def ownStatuesInSectors(state):
+    sectorDict = dict()
+    for entity in state.get_entities(entity_type = 'statue', team = state.my_team):
+        sector = state.map.sector_at(entity.location).top_left
+        if sector not in sectorDict:
+            sectorDict[sector]=1
+        else:
+            sectorDict[sector]+=1
+    return sectorDict
+
+
 def build_a_tower(thrower, state):
     if building_spots(thrower, state):
         thrower.queue_build(building_spots[0])
@@ -358,7 +369,7 @@ for state in game.turns():
         brawling = True
     all_goal_sectors = get_goal_sectors(state)
     moveTarget = enemyCentroid(state)
-    entityTimeDiff = 0
+    ownStatueInSectors = ownStatuesInSectors(state)
     for entity in state.get_entities(entity_type='thrower',team=state.my_team):
         moved = False
         # This line gets all the bots on your team
@@ -409,8 +420,6 @@ for state in game.turns():
         #         if entity.can_move(direction):
         #             entity.queue_move(direction)
 
-        entityEndTime = time.time()
-        entityTimeDiff = max(entityEndTime-entityStartTime,entityTimeDiff)
     endTime = time.time()
     print(endTime-starttime)
         # if time.time() - starttime + 2*entityTimeDiff > 0.1:
