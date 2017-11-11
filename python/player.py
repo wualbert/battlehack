@@ -112,8 +112,9 @@ def enemies_within_hitting_range(S, state):
     returns a list of lists of [entity that can be hit, direction] or None
     '''
     res = []
-    for other_entity in S.entities_within_euclidean_distance(7):
+    for other_entity in S.entities_within_euclidean_distance(3):
         if other_entity.team.id != state.my_team.id and other_entity.team.id != 0:
+#        if other_entity.team.id != state.my_team.id and other_entity.team.id != 0:
             otherX = other_entity.location.x
             otherY = other_entity.location.y
             throwerX = S.location.x
@@ -152,9 +153,9 @@ def hit_an_enemy(S, state):
     Stack throws a robot into an enemy (the first in the list for now)
     '''
     available_enemies = enemies_within_hitting_range(S,state)
-    if available_enemies != None and S.can_act:
-        S.queue_throw(available_enemies[0][1])
-        print('nanafig')
+    if available_enemies:
+        if S.can_throw(available_enemies[0][1]):
+            S.queue_throw(available_enemies[0][1])
 
 def building_spots(thrower, state):
     '''
@@ -174,7 +175,7 @@ def building_spots(thrower, state):
     condition = True
     #
     # for entity in current_sector.entities_in_sector():
-    #     if entity.type == 'STATUE':
+    #     if entity.type == 'statue':
     #         condition = False
             
     # neutral_without_statue = (sector_id ==0) and condition
@@ -185,7 +186,7 @@ def building_spots(thrower, state):
     if sector_id != state.my_team.id:# or neutral_without_statue:
         for possible_direction in battlecode.Direction.directions():
             possible_building_spot = current_location.adjacent_location_in_direction(possible_direction)
-            if thrower.can_build(possible_direction) and state.map.sector_at(possible_building_spot) == current_sector:
+            if thrower.can_build(possible_direction):# and state.map.sector_at(possible_building_spot) == current_sector:
                 building_spots.append(possible_direction)
 
     return building_spots
@@ -194,35 +195,91 @@ def build_a_tower(thrower, state):
     if building_spots(thrower, state):
         thrower.queue_build(building_spots[0])
         
-    
-    
-def aggresiveKill(state,entityMap, ownCount, enemyCount, enemyList,enemyStatueList):
-    for enemyEntity in enemyList.extend(enemyStatueList):
-        pass
 
-    return None
+def get_centroid(sector):
+    """given a sector returns its centroid as a location"""
+    tl = sector.top_left
+    return battlecode.Location(tl[0] + 2, tl[1] - 2 )
+
+def move(state, robot):
+    """
+    Moves a robot to a nearby goal sector that avoiding hedges
+    """
+    x = robot.location.x
+    y = robot.location.y
+    sector_to_move_to = state.map.sector_at(robot.location)
+    H = state.map.height
+    W = state.map.width
+    for dx in [-5, 0 ,5]:
+        for dy in [-5, 0, 5]:
+            if(not (0 <= x +dx < W and 0<= y + dy <H)):
+                continue
+            point_to_check = battlecode.Location(x + dx, y+dy)
+            that_sector = state.map.sector_at(point_to_check)
+            if(that_sector.team.id == state.my_team_id):
+                continue
+            sector_to_move_to = that_sector
+            center = get_centroid(sector_to_move_to)
+
+            if(robot.location == center):
+                return
+            dir_to_move = robot.location.direction_to(center)
+            if not robot.can_move(dir_to_move):
+                continue
+            robot.queue_move(dir_to_move)
+            return
+
+def aggresiveKill(state):
+    enemyEntities = list(state.get_entities(entity_type='thrower',team=state.other_team))
+    enemyEntities.extend(list(state.get_entities(entity_type='statue',team=state.other_team)))
+    for enemyEntity in enemyEntities:
+        enemyX = enemyEntity.location.x
+        enemyY = enemyEntity.location.y
+        for dx in [-1,0,1]:
+            for dy in [-1,0,1]:
+                if dx == 0 and dy == 0:
+                    continue
+                thrown = False
+                for k in range(1,8):
+                    if thrown:
+                        break
+                    checkLocation = battlecode.Location(enemyX+dx*k, enemyY+dy*k)
+                    if state.map.location_on_map(checkLocation):
+                        ownEntity = list(state.get_entities(location=checkLocation))
+                        if not ownEntity:
+                            continue
+                        ownEntity = ownEntity[0]
+                        pickupCandidates = ownEntity.entities_within_euclidean_distance(distance=1.9)
+                        for pickup in pickupCandidates:
+                            if ownEntity.can_pickup(pickup):
+                                ownEntity.queue_pickup(pickup)
+                                if ownEntity.can_throw(battlecode.Direction(-dx,-dy)):
+                                    ownEntity.queue_throw(battlecode.Direction(-dx,-dy))
+                                    thrown = True
+                                    break
+    return
 
 
+counter=0
 for state in game.turns():
     # Your Code will run within this loop
     starttime = time.time()
-
+    counter +=1
     #get entity map
     # entityMap = state.get_entities()
-    # print(state.get_entities(entity_type='thrower', team=state.my_team))
-    # print(state.get_entities(entity_type='thrower', team=state.other_team))
-
+    ownCount = len(list(state.get_entities(entity_type='thrower', team=state.my_team)))
+    enemyCount = len(list(state.get_entities(entity_type='thrower', team=state.other_team)))
+    # if float(ownCount)/float(enemyCount+1) >= 3:
+    #     aggresiveKill(state)
+    #     continue
     all_goal_sectors = get_goal_sectors(state)
     # if float(ownCount)/enemyCount >= 3:
     #     aggresiveKill(state)
+    entityTimeDiff = 0
     for entity in state.get_entities(team=state.my_team):
+        moved = False
         # This line gets all the bots on your team
-        subtime = time.time()
-
-        if subtime - starttime > 0.90:
-            break
-
-        ###Modifications###
+        entityStartTime = time.time()
         #get adjacent entities
         my_location = entity.location
         near_entities = list(entity.entities_within_euclidean_distance(1.9))
@@ -230,7 +287,6 @@ for state in game.turns():
         enemiesInRange = enemyPickup(entity, near_entities)
         #pick up enemies
         if enemiesInRange:
-            print('picking up')
             entity.queue_pickup(enemiesInRange[0])
             hit_an_enemy(entity, state)
 
@@ -238,24 +294,39 @@ for state in game.turns():
         buildDirections = building_spots(entity, state)
         if buildDirections:
             entity.queue_build(buildDirections[0])
+        #
+        # # move(state,entity)
+        # # call if need to move
+        # closestGoal = find_closest_goals(state, entity, all_goal_sectors)
+        #
+        # #check if already at goal
+        # if entity.location != closestGoal:
+        #     movementDirection = entity.location.direction_to(closestGoal)
+        #     #check if the direction is movable
+        #     if entity.can_move(movementDirection):
+        #         entity.queue_move(movementDirection)
+        #         moved = True
+        #     #turn if blocked
+        #     elif entity.can_move(movementDirection.rotate_counter_clockwise_degrees(90)):
+        #         entity.queue_move(movementDirection.rotate_counter_clockwise_degrees(90))
+        #         moved = True
+        #
+        #     elif entity.can_move(movementDirection.rotate_counter_clockwise_degrees(270)):
+        #         entity.queue_move(movementDirection.rotate_counter_clockwise_degrees(270))
+        #         moved = True
 
-        # call if need to move
-        closestGoal = find_closest_goals(state, entity, all_goal_sectors)
-
-        #check if already at goal
-        if entity.location != closestGoal:
-            movementDirection = entity.location.direction_to(closestGoal)
-            #check if the direction is movable
-            if entity.can_move(movementDirection):
-                entity.queue_move(movementDirection)
-            #turn if blocked
-            elif entity.can_move(movementDirection.rotate_counter_clockwise_degrees(90)):
-                entity.queue_move(movementDirection.rotate_counter_clockwise_degrees(90))
-            elif entity.can_move(movementDirection.rotate_counter_clockwise_degrees(270)):
-                entity.queue_move(movementDirection.rotate_counter_clockwise_degrees(270))
-
-
-
+        if not moved:
+            x = random.randint(-1,1)
+            y = random.randint(-1,1)
+            if not (x == 0 and y == 0):
+                direction = battlecode.Direction(x,y)
+                if entity.can_move(direction):
+                    entity.queue_move(direction)
+        entityEndTime = time.time()
+        entityTimeDiff = max(entityEndTime-entityStartTime,entityTimeDiff)
+        if time.time() - starttime + 2*entityTimeDiff > 0.1:
+            print('terminating')
+            break
 
         ###End###
         #

@@ -1,4 +1,4 @@
-
+import battlecode
 ################ BASIL ###################3
 
 def get_centroid(sector):
