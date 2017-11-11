@@ -259,22 +259,73 @@ def aggresiveKill(state):
                                     break
     return
 
+def brawl(state):
+    enemyEntities = list(state.get_entities(entity_type='thrower',team=state.other_team))
+    for enemyEntity in enemyEntities:
+        candidates = enemyEntity.entities_within_euclidean_distance(1.9)
+        for candidate in candidates:
+            if candidate.is_thrower and candidate.team == state.my_team and not (candidate.is_holding and candidate.is_held):
+                if candidate.can_pickup(enemyEntity):
+                    candidate.queue_pickup(enemyEntity)
+                    for direction in battlecode.Direction.all():
+                        if candidate.can_throw(direction):
+                            candidate.queue_throw(direction)
+    return
 
-counter=0
+def enemyCentroid(state):
+    xSum = 0
+    ySum = 0
+    enemyEntities = state.get_entities(team=state.other_team)
+    count = 0
+    for enemyEntity in enemyEntities:
+        xSum += enemyEntity.location.x
+        ySum += enemyEntity.location.y
+        count +=1
+    return (xSum/count, ySum/count)
+
+def targetWalk(entity, target):
+    """
+
+    :param entity:
+    :param target: (x,y)
+    :return:
+    """
+    currentX, currentY = entity.location.x,entity.location.y
+    targetDirection = battlecode.Direction.from_delta(target[0]-currentX, target[1]-currentY)
+
+
+    if entity.can_move(targetDirection):
+        entity.queue_move(targetDirection)
+        moved = True
+    #turn if blocked
+    elif entity.can_move(targetDirection.rotate_counter_clockwise_degrees(45)):
+        entity.queue_move(targetDirection.rotate_counter_clockwise_degrees(45))
+        moved = True
+
+    elif entity.can_move(targetDirection.rotate_counter_clockwise_degrees(315)):
+        entity.queue_move(targetDirection.rotate_counter_clockwise_degrees(315))
+        moved = True
+    elif entity.can_move(targetDirection.rotate_counter_clockwise_degrees(90)):
+        entity.queue_move(targetDirection.rotate_counter_clockwise_degrees(90))
+        moved = True
+
+    elif entity.can_move(targetDirection.rotate_counter_clockwise_degrees(270)):
+        entity.queue_move(targetDirection.rotate_counter_clockwise_degrees(270))
+        moved = True
+
 for state in game.turns():
     # Your Code will run within this loop
     starttime = time.time()
-    counter +=1
     #get entity map
-    # entityMap = state.get_entities()
+    brawling = False
+    entityMap = state.get_entities()
     ownCount = len(list(state.get_entities(entity_type='thrower', team=state.my_team)))
     enemyCount = len(list(state.get_entities(entity_type='thrower', team=state.other_team)))
-    # if float(ownCount)/float(enemyCount+1) >= 3:
-    #     aggresiveKill(state)
-    #     continue
+    if float(ownCount)/float(enemyCount+1) >= 3:
+        brawl(state)
+        brawling = True
     all_goal_sectors = get_goal_sectors(state)
-    # if float(ownCount)/enemyCount >= 3:
-    #     aggresiveKill(state)
+    moveTarget = enemyCentroid(state)
     entityTimeDiff = 0
     for entity in state.get_entities(team=state.my_team):
         moved = False
@@ -290,10 +341,13 @@ for state in game.turns():
             entity.queue_pickup(enemiesInRange[0])
             hit_an_enemy(entity, state)
 
-        #check for building statues
-        buildDirections = building_spots(entity, state)
-        if buildDirections:
-            entity.queue_build(buildDirections[0])
+        if not brawling:
+            #check for building statues
+            buildDirections = building_spots(entity, state)
+            if buildDirections:
+                entity.queue_build(buildDirections[0])
+
+        targetWalk(entity, moveTarget)
         #
         # # move(state,entity)
         # # call if need to move
@@ -314,39 +368,22 @@ for state in game.turns():
         #     elif entity.can_move(movementDirection.rotate_counter_clockwise_degrees(270)):
         #         entity.queue_move(movementDirection.rotate_counter_clockwise_degrees(270))
         #         moved = True
+        #
+        # if not moved:
+        #     x = random.randint(-1,1)
+        #     y = random.randint(-1,1)
+        #     if not (x == 0 and y == 0):
+        #         direction = battlecode.Direction(x,y)
+        #         if entity.can_move(direction):
+        #             entity.queue_move(direction)
 
-        if not moved:
-            x = random.randint(-1,1)
-            y = random.randint(-1,1)
-            if not (x == 0 and y == 0):
-                direction = battlecode.Direction(x,y)
-                if entity.can_move(direction):
-                    entity.queue_move(direction)
         entityEndTime = time.time()
         entityTimeDiff = max(entityEndTime-entityStartTime,entityTimeDiff)
-        if time.time() - starttime + 2*entityTimeDiff > 0.1:
-            print('terminating')
-            break
-
-        ###End###
-        #
-        # for pickup_entity in near_entities:
-        #     assert entity.location.is_adjacent(pickup_entity.location)
-        #     if entity.can_pickup(pickup_entity):
-        #         entity.queue_pickup(pickup_entity)
-        #
-        # statue = nearest_glass_state(state, entity)
-        # if(statue != None):
-        #     direction = entity.location.direction_to(statue.location)
-        #     if entity.can_throw(direction):
-        #         entity.queue_throw(direction)
-        #
-        # for direction in battlecode.Direction.directions():
-        #     if entity.can_move(direction):
-        #         entity.queue_move(direction)
-        # if subtime - starttime > 0.055:
+    endTime = time.time()
+    print(endTime-starttime)
+        # if time.time() - starttime + 2*entityTimeDiff > 0.1:
+        #     print('terminating')
         #     break
-
 end = time.clock()
 print('clock time: '+str(end - start))
 print('per round: '+str((end - start) / 1000))
