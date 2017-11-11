@@ -6,7 +6,7 @@ import random
 game = battlecode.Game('lmaowtf')
 
 start = time.clock()
-
+lockedTargets = set()
 #define helper functions here
 def nearest_glass_state(state, entity):
     nearest_statue = None
@@ -58,7 +58,7 @@ def enemyPickup(selfRobot,near_entities):
     nearEnemies = []
     for nearEntity in near_entities:
         if selfRobot.can_pickup(nearEntity):
-            if  nearEntity.team.id != state.my_team.id:
+            if  nearEntity.team != state.my_team:
                 nearEnemies.append(nearEntity)
     #sort enemies by HP
     nearEnemies.sort(key = lambda x: x.hp)
@@ -249,69 +249,123 @@ def move(state, robot):
             robot.queue_move(dir_to_move)
             return
 
-def aggresiveKill(state):
-    enemyEntities = list(state.get_entities(entity_type='thrower',team=state.other_team))
-    enemyEntities.extend(list(state.get_entities(entity_type='statue',team=state.other_team)))
-    for enemyEntity in enemyEntities:
-        enemyX = enemyEntity.location.x
-        enemyY = enemyEntity.location.y
-        for dx in [-1,0,1]:
-            for dy in [-1,0,1]:
+# def aggresiveKill(state):
+#     enemyEntities = list(state.get_entities(entity_type='thrower',team=state.other_team))
+#     enemyEntities.extend(list(state.get_entities(entity_type='statue',team=state.other_team)))
+#     for enemyEntity in enemyEntities:
+#         enemyX = enemyEntity.location.x
+#         enemyY = enemyEntity.location.y
+#         for dx in [-1,0,1]:
+#             for dy in [-1,0,1]:
+#                 if dx == 0 and dy == 0:
+#                     continue
+#                 thrown = False
+#                 for k in range(1,8):
+#                     if thrown:
+#                         break
+#                     checkLocation = battlecode.Location(enemyX+dx*k, enemyY+dy*k)
+#                     if state.map.location_on_map(checkLocation):
+#                         ownEntity = list(state.get_entities(location=checkLocation))
+#                         if not ownEntity:
+#                             continue
+#                         ownEntity = ownEntity[0]
+#                         pickupCandidates = ownEntity.entities_within_euclidean_distance(distance=1.9)
+#                         for pickup in pickupCandidates:
+#                             if ownEntity.can_pickup(pickup):
+#                                 ownEntity.queue_pickup(pickup)
+#                                 if ownEntity.can_throw(battlecode.Direction(-dx,-dy)):
+#                                     ownEntity.queue_throw(battlecode.Direction(-dx,-dy))
+#                                     thrown = True
+#                                     break
+#     return
+
+def killStatues(state, brawl):
+    enemyStatues = list(state.get_entities(entity_type='statue', team=state.other_team))
+
+    for enemyStatue in enemyStatues:
+        enemyX = enemyStatue.location.x
+        enemyY = enemyStatue.location.y
+        moved = False
+        throwed = False
+        tempLock = set()
+        d = [-1,0,1]
+        random.shuffle(d)
+        for dx in d:
+            if moved:
+                break
+            for dy in d:
+                breakK = 2
+                if moved:
+                    break
                 if dx == 0 and dy == 0:
                     continue
-                thrown = False
-                for k in range(1,8):
-                    if thrown:
-                        break
+                #special handle for k = 1
+                pickedLocation = battlecode.Location(enemyX + dx, enemyY + dy)
+                throwLocation = battlecode.Location(enemyX + dx * 2, enemyY + dy * 2)
+                if state.map.location_on_map(pickedLocation) and state.map.location_on_map(throwLocation):
+                    if brawl:
+                        pickedEntity = list(state.get_entities(location=pickedLocation))
+                    else:
+                        pickedEntity = list(state.get_entities(location=pickedLocation,team=state.other_team))
+                    if pickedEntity:
+                        if pickedEntity[0].can_be_picked:
+                            pickedEntity = pickedEntity[0]
+                            throwEntity = list(state.get_entities(location=throwLocation))
+                            if throwEntity:
+                                throwEntity=throwEntity[0]
+                                if throwEntity.team != state.my_team or not throwEntity.is_thrower:
+                                    break
+                                if throwEntity.can_pickup(pickedEntity):
+                                    throwEntity.queue_pickup(pickedEntity)
+                                    tempLock.add(throwEntity.id)
+                                    moved = True
+                                    if throwEntity.can_throw(battlecode.Direction(-dx,-dy)):
+                                        throwEntity.queue_throw(battlecode.Direction(-dx,-dy))
+                                        throwed = True
+                                    break
+                        else:
+                            break
+
+                for k in range(2,8):
+
+                    #special check for picking up the entity in line
+
                     checkLocation = battlecode.Location(enemyX+dx*k, enemyY+dy*k)
                     if state.map.location_on_map(checkLocation):
                         ownEntity = list(state.get_entities(location=checkLocation))
                         if not ownEntity:
                             continue
                         ownEntity = ownEntity[0]
-                        pickupCandidates = ownEntity.entities_within_euclidean_distance(distance=1.9)
-                        for pickup in pickupCandidates:
-                            if ownEntity.can_pickup(pickup):
-                                ownEntity.queue_pickup(pickup)
-                                if ownEntity.can_throw(battlecode.Direction(-dx,-dy)):
-                                    ownEntity.queue_throw(battlecode.Direction(-dx,-dy))
-                                    thrown = True
-                                    break
-    return
-
-def brawl(state):
-    enemyStatues = list(state.get_entities(entity_type='statue', team=state.other_team))
-
-    for enemyStatue in enemyStatues:
-        enemyX = enemyStatue.location.x
-        enemyY = enemyStatue.location.y
-        for dx in [-1,0,1]:
-            for dy in [-1,0,1]:
-                if dx == 0 and dy == 0:
-                    continue
-                thrown = False
-                for k in range(1,8):
-                    if thrown:
-                        break
-                    checkLocation = battlecode.Location(enemyX+dx*k, enemyY+dy*k)
-                    if state.map.location_on_map(checkLocation):
-                        ownEntity = list(state.get_entities(entity_type='thrower',location=checkLocation,team=state.my_team))
-                        if not ownEntity:
-                            continue
-                        ownEntity = ownEntity[0]
+                        if ownEntity.team != state.my_team or not ownEntity.is_thrower:
+                            break
                         if ownEntity.is_holding:
                             if ownEntity.can_throw(battlecode.Direction(-dx, -dy)):
                                 ownEntity.queue_throw(battlecode.Direction(-dx, -dy))
+                                moved = True
+                                throwed = True
                                 break
                         pickupCandidates = ownEntity.entities_within_euclidean_distance(distance=1.9)
                         for pickup in pickupCandidates:
+                            if not brawl:
+                                if pickup.team == state.my_team:
+                                    continue
                             if ownEntity.can_pickup(pickup):
                                 ownEntity.queue_pickup(pickup)
+                                moved = True
                                 if ownEntity.can_throw(battlecode.Direction(-dx,-dy)):
                                     ownEntity.queue_throw(battlecode.Direction(-dx,-dy))
-                                    thrown = True
-                                    break
+                                    throwed = True
+                                tempLock.add(ownEntity.id)
+                                break
+                            if moved:
+                                break
+                if moved and not throwed:
+                    entityList = list(enemyStatue.entities_within_adjacent_distance(breakK * 1.5))
+                    tempLock.add(ent.id for ent in entityList)
+        lockedTargets.union(tempLock)
 
+def brawl(state):
+    killStatues(state, True)
     enemyEntities = list(state.get_entities(entity_type='thrower',team=state.other_team))
     for enemyThrower in enemyEntities:
         candidates = enemyThrower.entities_within_euclidean_distance(1.9)
@@ -321,7 +375,40 @@ def brawl(state):
                     candidate.queue_pickup(enemyThrower)
                     for direction in battlecode.Direction.all():
                         if candidate.can_throw(direction):
+                            print('throw')
                             candidate.queue_throw(direction)
+
+    # for enemyStatue in enemyEntities:
+    #     if enemyStatue.hp > 4:
+    #         continue
+    #     enemyX = enemyStatue.location.x
+    #     enemyY = enemyStatue.location.y
+    #     for dx in [-1,0,1]:
+    #         for dy in [-1,0,1]:
+    #             if dx == 0 and dy == 0:
+    #                 continue
+    #             thrown = False
+    #             for k in range(1,8):
+    #                 if thrown:
+    #                     break
+    #                 checkLocation = battlecode.Location(enemyX+dx*k, enemyY+dy*k)
+    #                 if state.map.location_on_map(checkLocation):
+    #                     ownEntity = list(state.get_entities(entity_type='thrower',location=checkLocation,team=state.my_team))
+    #                     if not ownEntity:
+    #                         continue
+    #                     ownEntity = ownEntity[0]
+    #                     if ownEntity.is_holding:
+    #                         if ownEntity.can_throw(battlecode.Direction(-dx, -dy)):
+    #                             ownEntity.queue_throw(battlecode.Direction(-dx, -dy))
+    #                             break
+    #                     pickupCandidates = ownEntity.entities_within_euclidean_distance(distance=1.9)
+    #                     for pickup in pickupCandidates:
+    #                         if ownEntity.can_pickup(pickup) and ownEntity.can_throw(battlecode.Direction(-dx,-dy)):
+    #                             ownEntity.queue_pickup(pickup)
+    #                             ownEntity.queue_throw(battlecode.Direction(-dx,-dy))
+    #                             thrown = True
+    #                             break
+
     return
 
 def enemyCentroid(state):
@@ -338,6 +425,28 @@ def enemyCentroid(state):
         return (0,0)
     return (xSum/count, ySum/count)
 
+def moveIntoEnemyVicinity(state, self, deltaX, deltaY):
+    """
+    check if walking into enemy vicinity
+    :param state:
+    :param self:
+    :param deltaX:
+    :param deltaY:
+    :return:
+    """
+    currentX,currentY = self.location.x, self.location.y
+    targetX = currentX+deltaX
+    targetY = currentY+deltaY
+    for dx in [-1,0,1]:
+        for dy in [-1,0,1]:
+            testLocation = battlecode.Location(int(targetX+dx),int(targetY+dy))
+            if not state.map.location_on_map(testLocation):
+                continue
+            if list(state.get_entities(self, entity_type='thrower', location=testLocation, team=state.other_team)):
+                return True
+    return False
+
+
 def targetWalk(entity, target):
     """
 
@@ -350,42 +459,58 @@ def targetWalk(entity, target):
 
     if norm == 0:
         return
-    targetDirection = battlecode.Direction.from_delta((target[0]-currentX)/norm, (target[1]-currentY)/norm)
-
-
-    if entity.can_move(targetDirection):
+    dx = (target[0]-currentX)/norm
+    dy = (target[1]-currentY)/norm
+    targetDirection = battlecode.Direction.from_delta(dx,dy)
+    thetaList = [45,90,270,315]
+    random.shuffle(thetaList)
+    if entity.can_move(targetDirection) and not moveIntoEnemyVicinity(state,entity,int(dx),int(dy)) and random.randint(1,5)!=1:
         entity.queue_move(targetDirection)
         moved = True
+    #for now only check enemy when going straight
+
     #turn if blocked
-    elif entity.can_move(targetDirection.rotate_counter_clockwise_degrees(45)):
-        entity.queue_move(targetDirection.rotate_counter_clockwise_degrees(45))
+
+
+    elif entity.can_move(targetDirection.rotate_counter_clockwise_degrees(thetaList[0])):
+        entity.queue_move(targetDirection.rotate_counter_clockwise_degrees(thetaList[0]))
         moved = True
 
-    elif entity.can_move(targetDirection.rotate_counter_clockwise_degrees(315)):
-        entity.queue_move(targetDirection.rotate_counter_clockwise_degrees(315))
+    elif entity.can_move(targetDirection.rotate_counter_clockwise_degrees(thetaList[1])):
+        entity.queue_move(targetDirection.rotate_counter_clockwise_degrees(thetaList[1]))
         moved = True
-    elif entity.can_move(targetDirection.rotate_counter_clockwise_degrees(90)):
-        entity.queue_move(targetDirection.rotate_counter_clockwise_degrees(90))
+    elif entity.can_move(targetDirection.rotate_counter_clockwise_degrees(thetaList[2])):
+        entity.queue_move(targetDirection.rotate_counter_clockwise_degrees(thetaList[2]))
         moved = True
 
-    elif entity.can_move(targetDirection.rotate_counter_clockwise_degrees(270)):
-        entity.queue_move(targetDirection.rotate_counter_clockwise_degrees(270))
+    elif entity.can_move(targetDirection.rotate_counter_clockwise_degrees(thetaList[3])):
+        entity.queue_move(targetDirection.rotate_counter_clockwise_degrees(thetaList[3]))
+        moved = True
+
+    elif entity.can_move(targetDirection.rotate_counter_clockwise_degrees(180)) and random.randint(1,3)==1:
+        entity.queue_move(targetDirection.rotate_counter_clockwise_degrees(180))
         moved = True
 
 for state in game.turns():
     # Your Code will run within this loop
+    lockedTargets.intersection(set())
     starttime = time.time()
     #get entity map
     brawling = False
     entityMap = state.get_entities()
     ownCount = len(list(state.get_entities(entity_type='thrower', team=state.my_team)))
     enemyCount = len(list(state.get_entities(entity_type='thrower', team=state.other_team)))
-    if float(ownCount)/float(enemyCount+1) >= 3:
+    if float(ownCount)/float(enemyCount+1) >= 2:
         brawl(state)
         brawling = True
+
+    # if float(ownCount)/float(state.map.width*state.map.height)>0.4 and ownCount>enemyCount:
+    #     brawling = True
+
     all_goal_sectors = get_goal_sectors(state)
     moveTarget = enemyCentroid(state)
     ownStatueInSectors = ownStatuesInSectors(state)
+    count = 0
     for entity in state.get_entities(entity_type='thrower',team=state.my_team):
         moved = False
         # This line gets all the bots on your team
@@ -404,10 +529,16 @@ for state in game.turns():
         if not brawling:
             #check for building statues
             buildDirections = building_spots(entity, state)
-            if buildDirections:
+            if buildDirections and random.randint(1,3)!=1:
                 entity.queue_build(buildDirections[0])
+        if count == 0:
+            killStatues(state,False)
+        if entity.id not in lockedTargets:
+            targetWalk(entity, moveTarget)
+        count +=1
 
-        targetWalk(entity, moveTarget)
+
+
         #
         # # move(state,entity)
         # # call if need to move
