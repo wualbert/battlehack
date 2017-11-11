@@ -539,6 +539,7 @@ for state in game.turns():
 
 
 
+
         #
         # # move(state,entity)
         # # call if need to move
