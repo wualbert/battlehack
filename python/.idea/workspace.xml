@@ -38,8 +38,8 @@
       <file leaf-file-name="player.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/player.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="277">
-              <caret line="29" column="37" lean-forward="false" selection-start-line="29" selection-start-column="36" selection-end-line="29" selection-end-column="37" />
+            <state relative-caret-position="305">
+              <caret line="336" column="18" lean-forward="true" selection-start-line="336" selection-start-column="18" selection-end-line="336" selection-end-column="18" />
               <folding>
                 <element signature="e#0#17#0" expanded="true" />
               </folding>
@@ -87,6 +87,7 @@
       <find>pick</find>
       <find>time</find>
       <find>queue_move</find>
+      <find>key</find>
     </findStrings>
   </component>
   <component name="IdeDocumentHistory">
@@ -364,8 +365,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/player.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="277">
-          <caret line="29" column="37" lean-forward="false" selection-start-line="29" selection-start-column="36" selection-end-line="29" selection-end-column="37" />
+        <state relative-caret-position="305">
+          <caret line="336" column="18" lean-forward="true" selection-start-line="336" selection-start-column="18" selection-end-line="336" selection-end-column="18" />
           <folding>
             <element signature="e#0#17#0" expanded="true" />
           </folding>

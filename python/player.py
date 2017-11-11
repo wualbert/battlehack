@@ -185,10 +185,18 @@ def building_spots(thrower, state):
 
     for possible_direction in battlecode.Direction.directions():
         building_location = current_location.adjacent_location_in_direction(possible_direction)
+        if not state.map.location_on_map(building_location):
+            continue
         building_sector = MiniMap.sector_at(building_location)
         building_sector_id = building_sector.team.id
-        if building_sector_id != state.my_team.id and sector_dictionary[building_sector.top_left] and thrower.can_build(possible_direction):
-            building_spots.append(possible_direction)
+        if building_sector.top_left not in sector_dictionary:
+            if building_sector_id != state.my_team.id and thrower.can_build(possible_direction):
+                building_spots.append(possible_direction)
+                continue
+        elif sector_dictionary[building_sector.top_left] <=2:
+            if building_sector_id != state.my_team.id and thrower.can_build(possible_direction):
+                building_spots.append(possible_direction)
+                continue
 
     return building_spots
 
@@ -287,10 +295,14 @@ def brawl(state):
                         break
                     checkLocation = battlecode.Location(enemyX+dx*k, enemyY+dy*k)
                     if state.map.location_on_map(checkLocation):
-                        ownEntity = list(state.get_entities(location=checkLocation))
+                        ownEntity = list(state.get_entities(entity_type='thrower',location=checkLocation,team=state.my_team))
                         if not ownEntity:
                             continue
                         ownEntity = ownEntity[0]
+                        if ownEntity.is_holding:
+                            if ownEntity.can_throw(battlecode.Direction(-dx, -dy)):
+                                ownEntity.queue_throw(battlecode.Direction(-dx, -dy))
+                                break
                         pickupCandidates = ownEntity.entities_within_euclidean_distance(distance=1.9)
                         for pickup in pickupCandidates:
                             if ownEntity.can_pickup(pickup):
@@ -301,12 +313,12 @@ def brawl(state):
                                     break
 
     enemyEntities = list(state.get_entities(entity_type='thrower',team=state.other_team))
-    for enemyStatue in enemyEntities:
-        candidates = enemyStatue.entities_within_euclidean_distance(1.9)
+    for enemyThrower in enemyEntities:
+        candidates = enemyThrower.entities_within_euclidean_distance(1.9)
         for candidate in candidates:
             if candidate.is_thrower and candidate.team == state.my_team and not (candidate.is_holding and candidate.is_held):
-                if candidate.can_pickup(enemyStatue):
-                    candidate.queue_pickup(enemyStatue)
+                if candidate.can_pickup(enemyThrower):
+                    candidate.queue_pickup(enemyThrower)
                     for direction in battlecode.Direction.all():
                         if candidate.can_throw(direction):
                             candidate.queue_throw(direction)
@@ -317,10 +329,13 @@ def enemyCentroid(state):
     ySum = 0
     enemyEntities = state.get_entities(team=state.other_team)
     count = 0
+
     for enemyEntity in enemyEntities:
         xSum += enemyEntity.location.x
         ySum += enemyEntity.location.y
         count +=1
+    if count == 0:
+        return (0,0)
     return (xSum/count, ySum/count)
 
 def targetWalk(entity, target):
