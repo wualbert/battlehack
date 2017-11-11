@@ -438,7 +438,7 @@ for state in game.turns():
         #             entity.queue_move(direction)
 
     endTime = time.time()
-    print(endTime-starttime)
+    #print(endTime-starttime)
         # if time.time() - starttime + 2*entityTimeDiff > 0.1:
         #     print('terminating')
         #     break
