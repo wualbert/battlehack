@@ -23,24 +23,30 @@ def nearest_glass_state(state, entity):
 
     ###Modifications###
 
-def getEntityMap(state):
-    """
-
-    :param state: a game state
-    :return: 2d array of [map.width][map.height] that stores entity objects, ownCount, enemyCount
-    """
-    enemyCount = 0
-    ownCount = 0
-    entityMap = [[None]*state.map.height]*state.map.width
-    for entity in state.get_entities():
-        entityMap[entity.location.x][entity.location.y] = entity
-        if entity.is_thrower:
-            if entity.team == state.my_team:
-                ownCount+=1
-            else:
-                enemyCount+=1
-    print("ownteam", ownCount,"enemy", enemyCount)
-    return entityMap, ownCount, enemyCount
+# def getEntityMap(state):
+#     """
+#
+#     :param state: a game state
+#     :return: 2d array of [map.width][map.height] that stores entity objects, ownRobotCount, enemyCount, enemyRobotList
+#     """
+#     enemyRobotCount = 0
+#     ownRobotCount = 0
+#     enemyRobotList = []
+#     enemyStatueList =[]
+#     entityMap = [[None]*state.map.height]*state.map.width
+#     for entity in state.get_entities():
+#         entityMap[entity.location.x][entity.location.y] = entity
+#         if entity.is_thrower:
+#             if entity.team.id == state.my_team.id:
+#                 ownRobotCount+=1
+#             else:
+#                 enemyRobotCount+=1
+#                 enemyRobotList.append(entity)
+#         elif entity.is_statue:
+#             if entity.team.id != state.my_team.id:
+#                 enemyStatueList.append(entity)
+#     print("ownteam", ownRobotCount,"enemy", enemyRobotCount)
+#     return entityMap, ownRobotCount, enemyRobotCount, enemyRobotList, enemyStatueList
 
 def enemyPickup(selfRobot,near_entities):
     """
@@ -166,16 +172,17 @@ def building_spots(thrower, state):
     current_sector = MiniMap.sector_at(current_location)
     sector_id = current_sector.team.id
     condition = True
-    
-    for entity in current_sector.entities_in_sector():
-        if entity.type == 'STATUE':
-            condition = False
+    #
+    # for entity in current_sector.entities_in_sector():
+    #     if entity.type == 'STATUE':
+    #         condition = False
             
-    neutral_without_statue = (sector_id ==0) and condition
+    # neutral_without_statue = (sector_id ==0) and condition
 
     building_spots = []
             
-    if (sector_id != 0 and sector_id != state.my_team.id) or neutral_without_statue:
+    #if (sector_id != 0 and sector_id != state.my_team.id)# or neutral_without_statue:
+    if sector_id != state.my_team.id:# or neutral_without_statue:
         for possible_direction in battlecode.Direction.directions():
             possible_building_spot = current_location.adjacent_location_in_direction(possible_direction)
             if thrower.can_build(possible_direction) and state.map.sector_at(possible_building_spot) == current_sector:
@@ -184,34 +191,36 @@ def building_spots(thrower, state):
     return building_spots
 
 def build_a_tower(thrower, state):
-    if building_spots(thrower, state) != []:
+    if building_spots(thrower, state):
         thrower.queue_build(building_spots[0])
         
     
     
-def aggresiveKill(state):
-    pass
+def aggresiveKill(state,entityMap, ownCount, enemyCount, enemyList,enemyStatueList):
+    for enemyEntity in enemyList.extend(enemyStatueList):
+        pass
+
+    return None
+
 
 for state in game.turns():
     # Your Code will run within this loop
     starttime = time.time()
 
     #get entity map
-    entityMap, ownCount, enemyCount = getEntityMap(state)
+    # entityMap = state.get_entities()
+    # print(state.get_entities(entity_type='thrower', team=state.my_team))
+    # print(state.get_entities(entity_type='thrower', team=state.other_team))
 
     all_goal_sectors = get_goal_sectors(state)
-
-    aggresiveKillMode = False
-    for entity in state.get_entities(team=state.my_team): 
+    # if float(ownCount)/enemyCount >= 3:
+    #     aggresiveKill(state)
+    for entity in state.get_entities(team=state.my_team):
         # This line gets all the bots on your team
         subtime = time.time()
 
         if subtime - starttime > 0.90:
             break
-
-        if aggresiveKillMode:
-            aggresiveKill(state)
-
 
         ###Modifications###
         #get adjacent entities
