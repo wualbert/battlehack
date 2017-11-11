@@ -168,6 +168,7 @@ def building_spots(thrower, state):
 
     returns: a list of possible building directions
     '''
+    sector_dictionary = ownStatuesInSectors(state)
     current_location = thrower.location
     MiniMap = state.map
     current_sector = MiniMap.sector_at(current_location)
@@ -181,13 +182,13 @@ def building_spots(thrower, state):
     # neutral_without_statue = (sector_id ==0) and condition
 
     building_spots = []
-            
-    #if (sector_id != 0 and sector_id != state.my_team.id)# or neutral_without_statue:
-    if sector_id != state.my_team.id:# or neutral_without_statue:
-        for possible_direction in battlecode.Direction.directions():
-            possible_building_spot = current_location.adjacent_location_in_direction(possible_direction)
-            if thrower.can_build(possible_direction):# and state.map.sector_at(possible_building_spot) == current_sector:
-                building_spots.append(possible_direction)
+
+    for possible_direction in battlecode.Direction.directions():
+        building_location = current_location.adjacent_location_in_direction(possible_direction)
+        building_sector = MiniMap.sector_at(building_location)
+        building_sector_id = building_sector.team.id
+        if building_sector_id != state.my_team.id and sector_dictionary[building_sector.top_left] and thrower.can_build(possible_direction):
+            building_spots.append(possible_direction)
 
     return building_spots
 
@@ -294,27 +295,26 @@ for state in game.turns():
         buildDirections = building_spots(entity, state)
         if buildDirections:
             entity.queue_build(buildDirections[0])
-        #
-        # # move(state,entity)
-        # # call if need to move
-        # closestGoal = find_closest_goals(state, entity, all_goal_sectors)
-        #
-        # #check if already at goal
-        # if entity.location != closestGoal:
-        #     movementDirection = entity.location.direction_to(closestGoal)
-        #     #check if the direction is movable
-        #     if entity.can_move(movementDirection):
-        #         entity.queue_move(movementDirection)
-        #         moved = True
-        #     #turn if blocked
-        #     elif entity.can_move(movementDirection.rotate_counter_clockwise_degrees(90)):
-        #         entity.queue_move(movementDirection.rotate_counter_clockwise_degrees(90))
-        #         moved = True
-        #
-        #     elif entity.can_move(movementDirection.rotate_counter_clockwise_degrees(270)):
-        #         entity.queue_move(movementDirection.rotate_counter_clockwise_degrees(270))
-        #         moved = True
-
+        
+         # move(state,entity)
+         # call if need to move
+         closestGoal = find_closest_goals(state, entity, all_goal_sectors)
+        
+         #check if already at goal
+        if entity.location != closestGoal:
+             movementDirection = entity.location.direction_to(closestGoal)
+             #check if the direction is movable
+             if entity.can_move(movementDirection):
+                 entity.queue_move(movementDirection)
+                 moved = True
+             #turn if blocked
+             elif entity.can_move(movementDirection.rotate_counter_clockwise_degrees(90)):
+                 entity.queue_move(movementDirection.rotate_counter_clockwise_degrees(90))
+                 moved = True
+        
+             elif entity.can_move(movementDirection.rotate_counter_clockwise_degrees(270)):
+                 entity.queue_move(movementDirection.rotate_counter_clockwise_degrees(270))
+                 moved = True
         if not moved:
             x = random.randint(-1,1)
             y = random.randint(-1,1)
